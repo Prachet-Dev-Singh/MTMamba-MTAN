@@ -155,8 +155,13 @@ def get_test_dataset(p, transforms=None):
                     img_size=p.TEST.SCALE, augmentations=None, 
                     task_list=p.TASKS.NAMES)
 
+    elif db_name == 'CityscapesMTAN':
+        from data.cityscapes_mtan import CityscapesMTAN
+        database = CityscapesMTAN(p.db_paths['CityscapesMTAN'], split='val',
+                    task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=False)
+
     else:
-        raise NotImplemented("test_db_name: Choose among PASCALContext and NYUD")
+        raise NotImplementedError("test_db_name: Choose among PASCALContext, NYUD, Cityscapes, CityscapesMTAN")
 
     return database
 

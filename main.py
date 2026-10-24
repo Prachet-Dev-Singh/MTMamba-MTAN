@@ -74,6 +74,18 @@ def main():
             mkdir_if_missing(tb_log_dir)
             mkdir_if_missing(train_tb_log_dir)
             mkdir_if_missing(test_tb_log_dir)
+            
+        if os.environ.get('WANDB_API_KEY'):
+            try:
+                import wandb
+                wandb.init(
+                    project=os.environ.get('WANDB_PROJECT', 'MTMamba-Cityscapes'),
+                    name=p.get('version_name', 'mtmamba_city_mtan'),
+                    config=dict(p)
+                )
+                print('[WandB] Live monitoring initialized!')
+            except Exception as e:
+                print(f'[WandB] Init skipped: {e}')
         print(f"Tensorboard dir: {tb_log_dir}")
     else:
         tb_writer_train = None
@@ -172,6 +184,12 @@ def main():
         end_time = time.time()
         run_time = (end_time-start_time) / 3600
         print('Total running time: {} h.'.format(run_time))
+        try:
+            import wandb
+            if wandb.run is not None:
+                wandb.finish()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     # IMPORTANT VARIABLES

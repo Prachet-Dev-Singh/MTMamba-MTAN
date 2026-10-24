@@ -15,7 +15,14 @@ import pdb
 
 def update_tb(tb_writer, tag, loss_dict, iter_no):
     for k, v in loss_dict.items():
-        tb_writer.add_scalar(f'{tag}/{k}', v.item(), iter_no)
+        val = v.item() if hasattr(v, 'item') else float(v)
+        tb_writer.add_scalar(f'{tag}/{k}', val, iter_no)
+    try:
+        import wandb
+        if wandb.run is not None:
+            wandb.log({f'{tag}/{k}': (v.item() if hasattr(v, 'item') else float(v)) for k, v in loss_dict.items()}, step=iter_no)
+    except Exception:
+        pass
 
 
 def train_phase(p, args, train_loader, test_dataloader, model, criterion, optimizer, 
@@ -77,7 +84,7 @@ def train_phase(p, args, train_loader, test_dataloader, model, criterion, optimi
     if args.local_rank == 0 and epoch >= begin_eva:
         print('Evaluate at epoch {}'.format(epoch))
         curr_result = test_phase(p, test_dataloader, model, criterion, epoch)
-        # tb_update_perf(p, tb_writer_test, curr_result, iter_count)
+        tb_update_perf(p, tb_writer_test, curr_result, iter_count)
         print('Evaluate results at epoch {}: \n'.format(epoch))
         print(curr_result)
         with open(os.path.join(p['save_dir'], p.version_name + '_' + str(epoch) + '.txt'), 'w') as f:
@@ -116,15 +123,30 @@ class PolynomialLR(torch.optim.lr_scheduler._LRScheduler):
         return [(base_lr - self.min_lr) * factor + self.min_lr for base_lr in self.base_lrs]
 
 def tb_update_perf(p, tb_writer_test, curr_result, cur_iter):
-    if 'semseg' in p.TASKS.NAMES:
-        tb_writer_test.add_scalar('perf/semseg_miou', curr_result['semseg']['mIoU'], cur_iter)
-    if 'human_parts' in p.TASKS.NAMES:
+    metrics = {}
+    if 'semseg' in p.TASKS.NAMES and 'semseg' in curr_result:
+        m_iou = curr_result['semseg']['mIoU']
+        tb_writer_test.add_scalar('perf/semseg_miou', m_iou, cur_iter)
+        metrics['val/semseg_mIoU'] = m_iou
+    if 'human_parts' in p.TASKS.NAMES and 'human_parts' in curr_result:
         tb_writer_test.add_scalar('perf/human_parts_mIoU', curr_result['human_parts']['mIoU'], cur_iter)
-    if 'sal' in p.TASKS.NAMES:
+    if 'sal' in p.TASKS.NAMES and 'sal' in curr_result:
         tb_writer_test.add_scalar('perf/sal_maxF', curr_result['sal']['maxF'], cur_iter)
-    if 'edge' in p.TASKS.NAMES:
+    if 'edge' in p.TASKS.NAMES and 'edge' in curr_result:
         tb_writer_test.add_scalar('perf/edge_val_loss', curr_result['edge']['loss'], cur_iter)
-    if 'normals' in p.TASKS.NAMES:
+    if 'normals' in p.TASKS.NAMES and 'normals' in curr_result:
         tb_writer_test.add_scalar('perf/normals_mean', curr_result['normals']['mean'], cur_iter)
-    if 'depth' in p.TASKS.NAMES:
-        tb_writer_test.add_scalar('perf/depth_rmse', curr_result['depth']['rmse'], cur_iter)
+    if 'depth' in p.TASKS.NAMES and 'depth' in curr_result:
+        rmse = curr_result['depth']['rmse']
+        tb_writer_test.add_scalar('perf/depth_rmse', rmse, cur_iter)
+        metrics['val/depth_rmse'] = rmse
+        if 'abs_rel' in curr_result['depth']:
+            abs_rel = curr_result['depth']['abs_rel']
+            tb_writer_test.add_scalar('perf/depth_abs_rel', abs_rel, cur_iter)
+            metrics['val/depth_abs_rel'] = abs_rel
+    try:
+        import wandb
+        if wandb.run is not None and metrics:
+            wandb.log(metrics, step=cur_iter)
+    except Exception:
+        pass

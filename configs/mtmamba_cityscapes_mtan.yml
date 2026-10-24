@@ -1,0 +1,38 @@
+﻿# MTMamba on MTAN-preprocessed Cityscapes (128x256, 7 classes)
+version_name: mtmamba_city_mtan
+out_dir: "/runs/"
+
+# Database - our custom MTAN dataset
+train_db_name: CityscapesMTAN
+val_db_name: CityscapesMTAN
+trBatch: 4          # 8 samples/GPU (effective batch = 8, matching orig 8xGPU x 1)
+valBatch: 8
+nworkers: 4
+ignore_index: 255
+
+# Optimizer and scheduler
+intermediate_supervision: False
+val_interval: 500   # validate every 500 iters (more frequent than 1000 at this small scale)
+epochs: 999999
+max_iter: 15000     # keep original iteration budget
+optimizer: adamw
+optimizer_kwargs:
+   lr: 0.0001       # same LR as original (single GPU matches via grad accum)
+   weight_decay: 0.000001
+scheduler: poly
+
+# Model
+model: MTMamba
+backbone: swin_large  # window_size overridden to 8 in common_config.py for 128x256
+
+# Tasks
+task_dictionary:
+   include_semseg: True
+   include_depth: True
+
+# Loss
+loss_kwargs:
+   loss_scheme: log
+   loss_weights:
+       semseg: 1.0
+       depth: 1.0

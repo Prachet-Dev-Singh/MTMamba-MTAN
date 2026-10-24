@@ -12,10 +12,16 @@ def get_backbone(p):
         from mmseg.models.backbones.swin import SwinTransformer
         backbone_channels = None
         ppath = './pretrained_ckpts/'
-        backbone = SwinTransformer(patch_size=4, window_size=12, embed_dims=192, 
+        _win = 8 if getattr(p, "IMAGE_ORI_SIZE", [1024])[0] <= 256 else 12
+        backbone = SwinTransformer(patch_size=4, window_size=_win, embed_dims=192, 
                     depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48), pretrain_img_size=p.TRAIN.SCALE,
                     pretrained=f'{ppath}/mmseg_swin_large_patch4_window12_384_22kto1k.pth')
         backbone.init_weights()
+
+    elif db_name == 'CityscapesMTAN':
+        from data.cityscapes_mtan import CityscapesMTAN
+        database = CityscapesMTAN(p.db_paths['CityscapesMTAN'], split='val',
+                    task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=False)
     else:
         raise NotImplementedError
 
@@ -68,6 +74,9 @@ def get_transformations(p):
         ])
         return train_transforms, valid_transforms
 
+    elif p['train_db_name'] == 'CityscapesMTAN':
+        return None, None
+
     else:
         return None, None
 
@@ -101,6 +110,11 @@ def get_train_dataset(p, transforms=None):
                     img_size=p.TRAIN.SCALE, augmentations=None, 
                     task_list=p.TASKS.NAMES)
 
+
+    if db_name == 'CityscapesMTAN':
+        from data.cityscapes_mtan import CityscapesMTAN
+        database = CityscapesMTAN(p.db_paths['CityscapesMTAN'], split='train',
+                    task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=True)
     return database
 
 

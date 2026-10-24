@@ -37,6 +37,8 @@ CITYSCAPES_CATEGORY_NAMES = ['road', 'sidewalk', 'building', 'wall', 'fence',\
                     'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', \
                     'motorcycle', 'bicycle']
 
+
+MTAN_CATEGORY_NAMES = ['flat', 'construction', 'object', 'nature', 'sky', 'human', 'vehicle']
 class SemsegMeter(object):
     def __init__(self, database, ignore_idx=255):
         ''' "marco" way in ATRC evaluation code.
@@ -54,6 +56,11 @@ class SemsegMeter(object):
         elif database == 'Cityscapes':
             n_classes = 19
             cat_names = CITYSCAPES_CATEGORY_NAMES
+            has_bg = False
+
+        elif database == 'CityscapesMTAN':
+            n_classes = 7
+            cat_names = MTAN_CATEGORY_NAMES
             has_bg = False
 
         else:

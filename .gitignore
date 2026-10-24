@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.class
+
+# Checkpoints, models and weights
+*.pth
+*.pt
+*.tar
+*.pth.tar
+*.ckpt
+pretrained_ckpts/*.pth
+pretrained_ckpts/*.tar
+runs/
+ckpts/
+
+# Logs and training outputs
+*.log
+log_file.txt
+*.out
+events.out.tfevents.*
+
+# Datasets and archives
+data/cityscapes/
+data/leftImg8bit*
+data/gtFine*
+data/disparity*
+*.zip
+*.tar.gz
+
+# Scratch and patch scripts
+_patch_*.py
+mtmamba_modal.py
+
+# Environments and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+venv/
+mamba_env/

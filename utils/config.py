@@ -1,4 +1,4 @@
-# This code is referenced from 
+﻿# This code is referenced from 
 # https://github.com/facebookresearch/astmt/
 # 
 # Copyright (c) Facebook, Inc. and its affiliates.
@@ -36,6 +36,8 @@ def parse_task_dictionary(db_name, task_dictionary):
             task_cfg.NUM_OUTPUT[tmp] = 40
         elif db_name == 'Cityscapes':
             task_cfg.NUM_OUTPUT[tmp] = 19
+        elif db_name == 'CityscapesMTAN':
+            task_cfg.NUM_OUTPUT[tmp] = 7  # 7-class MTAN grouping
         else:
             raise NotImplementedError
         task_cfg.FLAGVALS[tmp] = cv2.INTER_NEAREST 
@@ -51,6 +53,9 @@ def parse_task_dictionary(db_name, task_dictionary):
         if db_name == 'Cityscapes':
             task_cfg.depth_max = 80.0
             task_cfg.depth_min = 0.
+        elif db_name == 'CityscapesMTAN':
+            task_cfg.depth_max = 10.0
+            task_cfg.depth_min = 0.0
         else:
             task_cfg.depth_max = None
             task_cfg.depth_min = None
@@ -138,6 +143,14 @@ def create_config(exp_file, params):
         cfg.TEST = edict()
         cfg.TEST.SCALE = (512, 1024) # original size
 
+    elif cfg['train_db_name'] == 'CityscapesMTAN':
+        # MTAN dataset: 128x256 .npy files, 7 classes
+        cfg.IMAGE_ORI_SIZE = (128, 256)
+        cfg.TRAIN = edict()
+        cfg.TRAIN.SCALE = (128, 256)
+        cfg.TEST = edict()
+        cfg.TEST.SCALE = (128, 256)
+
     else:
         raise NotImplementedError
 
@@ -158,3 +171,4 @@ def create_config(exp_file, params):
     cfg.update(params)
 
     return cfg
+

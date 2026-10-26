@@ -13,17 +13,28 @@ def get_backbone(p):
         backbone_channels = None
         ppath = './pretrained_ckpts/'
         _win = 8 if getattr(p, "IMAGE_ORI_SIZE", [1024])[0] <= 256 else 12
-        backbone = SwinTransformer(patch_size=4, window_size=_win, embed_dims=192, 
+        backbone = SwinTransformer(patch_size=4, window_size=_win, embed_dims=192,
                     depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48), pretrain_img_size=p.TRAIN.SCALE,
                     pretrained=f'{ppath}/mmseg_swin_large_patch4_window12_384_22kto1k.pth')
         backbone.init_weights()
 
-    elif db_name == 'CityscapesMTAN':
-        from data.cityscapes_mtan import CityscapesMTAN
-        database = CityscapesMTAN(p.db_paths['CityscapesMTAN'], split='val',
-                    task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=False)
+    elif p['backbone'] == 'resnet50':
+        from models.resnet_backbone import build_resnet50_backbone
+        backbone_channels = None
+        backbone = build_resnet50_backbone(pretrained=True)
+
+    elif p['backbone'] == 'resnet34':
+        from models.resnet_backbone import build_resnet34_backbone
+        backbone_channels = None
+        backbone = build_resnet34_backbone(pretrained=True)
+
+    elif p['backbone'] == 'resnet18':
+        from models.resnet_backbone import build_resnet18_backbone
+        backbone_channels = None
+        backbone = build_resnet18_backbone(pretrained=True)
+
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Backbone {p['backbone']} not implemented.")
 
     return backbone, backbone_channels
 

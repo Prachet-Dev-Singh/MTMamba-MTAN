@@ -1,0 +1,39 @@
+# MTMamba on MTAN-preprocessed Cityscapes (128x256, 7 classes) with ResNet-50 Backbone
+# (No manual checkpoint download needed - uses official torchvision ImageNet weights)
+version_name: mtmamba_city_mtan_resnet50
+out_dir: "/runs/"
+
+# Database - same MTAN dataset as Swin run
+train_db_name: CityscapesMTAN
+val_db_name: CityscapesMTAN
+trBatch: 4          # 4 samples/GPU (effective batch = 8 on 2x T4 GPUs)
+valBatch: 8
+nworkers: 4
+ignore_index: 255
+
+# Optimizer and scheduler
+intermediate_supervision: False
+val_interval: 500   # validate every 500 iterations
+epochs: 999999
+max_iter: 15000     # 15,000 iterations to match comparison budget
+optimizer: adamw
+optimizer_kwargs:
+   lr: 0.0001
+   weight_decay: 0.000001
+scheduler: poly
+
+# Model
+model: MTMamba
+backbone: resnet50  # Uses models/resnet_backbone.py (ResNet-50)
+
+# Tasks
+task_dictionary:
+   include_semseg: True
+   include_depth: True
+
+# Loss
+loss_kwargs:
+   loss_scheme: log
+   loss_weights:
+       semseg: 1.0
+       depth: 1.0

@@ -1,8 +1,8 @@
 """
 Standalone Evaluation Script for MTMamba (Swin-Large & ResNet-50)
 
-Computes the full set of metrics matching the CNN U-Net and Mamba-UNet tables:
-  - Loss (Validation Multi-Task Loss)
+Computes the full set of authentic metrics matching the CNN U-Net and Mamba-UNet tables:
+  - Loss (Linear Multi-Task Loss = L_semseg + L_depth, identical to Part 1 & 2 benchmarks)
   - mIoU (Mean Intersection over Union / Macro-average)
   - Overall IoU (Global Intersection over Union / Micro-average)
   - Pixel Accuracy (Global Correct Pixel Percentage)
@@ -11,13 +11,13 @@ Computes the full set of metrics matching the CNN U-Net and Mamba-UNet tables:
   - Log RMSE & Sq Rel
 
 Usage on Kaggle:
-    python evaluate_complete.py --config configs/mtmamba_cityscapes_mtan.yml --checkpoint /kaggle/working/runs/mtmamba_city_mtan/best_model.pth.tar
-    python evaluate_complete.py --config configs/mtmamba_cityscapes_mtan_resnet.yml --checkpoint /kaggle/working/runs/mtmamba_city_mtan_resnet50/best_model.pth.tar
+    python evaluate_complete.py --config configs/mtmamba_cityscapes_mtan_resnet.yml
 """
 
 import argparse
 import json
 import os
+import sys
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -29,46 +29,109 @@ from evaluation.evaluate_utils import PerformanceMeter
 from utils.utils import get_output
 
 
+def auto_detect_dataset(p):
+    """Locate CityscapesMTAN dataset directory containing val/image/."""
+    candidates = [
+        p.get('db_paths', {}).get('CityscapesMTAN', ''),
+        '/data',
+        '/kaggle/input/cityscapes-mtan-dataset',
+        '/kaggle/input/datasets/prachetdevsingh/cityscapes-mtan-dataset',
+    ]
+    for c in candidates:
+        if c and os.path.exists(os.path.join(c, 'val', 'image')):
+            p.db_paths['CityscapesMTAN'] = c
+            print(f"[Evaluate] Detected CityscapesMTAN dataset at: {c}")
+            return c
+
+    # Recursive search under /kaggle/input if not in standard candidates
+    if os.path.exists('/kaggle/input'):
+        for root, dirs, files in os.walk('/kaggle/input'):
+            if 'image' in dirs and os.path.basename(root) == 'val':
+                dataset_dir = os.path.dirname(root)
+                p.db_paths['CityscapesMTAN'] = dataset_dir
+                print(f"[Evaluate] Auto-discovered CityscapesMTAN dataset at: {dataset_dir}")
+                return dataset_dir
+
+    print(f"[Evaluate] Warning: Using default dataset path '{p.db_paths.get('CityscapesMTAN')}'")
+    return p.db_paths.get('CityscapesMTAN')
+
+
+def auto_detect_checkpoint(checkpoint_path, config_path):
+    """Find the checkpoint (.pth.tar) across /kaggle/working and /kaggle/input."""
+    if checkpoint_path and os.path.isfile(checkpoint_path):
+        return checkpoint_path
+
+    print(f"[Evaluate] Checkpoint '{checkpoint_path}' not found directly. Searching /kaggle...")
+    search_dirs = ['/kaggle/working', '/kaggle/input', '.', 'runs']
+    found = []
+    for sdir in search_dirs:
+        if os.path.exists(sdir):
+            for root, dirs, files in os.walk(sdir):
+                for f in files:
+                    if f.endswith('.pth.tar'):
+                        found.append(os.path.join(root, f))
+
+    if not found:
+        raise FileNotFoundError(f"No .pth.tar checkpoints found under {search_dirs}")
+
+    # Prioritize matching backbone name
+    is_resnet = 'resnet' in config_path.lower()
+    matching = [x for x in found if ('resnet' in x.lower()) == is_resnet]
+    if not matching:
+        matching = found
+
+    # Prefer 'checkpoint.pth.tar' or 'best'
+    prioritized = [x for x in matching if 'checkpoint' in os.path.basename(x) or 'best' in os.path.basename(x)]
+    chosen = prioritized[0] if prioritized else matching[0]
+    print(f"[Evaluate] Auto-detected checkpoint: {chosen}")
+    return chosen
+
+
 @torch.no_grad()
-def evaluate_checkpoint(config_path, checkpoint_path, device="cuda" if torch.cuda.is_available() else "cpu"):
-    p = create_config(config_path)
-    p['db_paths']['CityscapesMTAN'] = p.db_paths['CityscapesMTAN']
+def evaluate_checkpoint(config_path, checkpoint_path=None, device="cuda" if torch.cuda.is_available() else "cpu"):
+    params = {'run_mode': 'test'}
+    p = create_config(config_path, params)
+    
+    # 1. Dataset path
+    auto_detect_dataset(p)
+    
+    # 2. Checkpoint path
+    checkpoint_path = auto_detect_checkpoint(checkpoint_path, config_path)
     
     print(f"\n[Evaluate] Loading config from: {config_path}")
     print(f"[Evaluate] Loading checkpoint from: {checkpoint_path}")
+    print(f"[Evaluate] Compute device: {device}")
     
-    # 1. Dataset & Dataloader
+    # 3. Dataset & Dataloader
     test_dataset = get_test_dataset(p)
     test_loader = get_test_dataloader(p, test_dataset)
-    print(f"[Evaluate] Validation images: {len(test_dataset)}")
+    print(f"[Evaluate] Validation images count: {len(test_dataset)}")
     
-    # 2. Model & Checkpoint
+    # 4. Model & Checkpoint weights
     model = get_model(p)
-    if os.path.exists(checkpoint_path):
-        ckpt = torch.load(checkpoint_path, map_location="cpu")
-        state_dict = ckpt.get("model", ckpt.get("state_dict", ckpt))
-        # Strip potential DDP 'module.' prefix
-        clean_state_dict = {}
-        for k, v in state_dict.items():
-            clean_k = k.replace("module.", "")
-            clean_state_dict[clean_k] = v
-        model.load_state_dict(clean_state_dict)
-        print("[Evaluate] Checkpoint loaded successfully!")
-    else:
-        raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
+    ckpt = torch.load(checkpoint_path, map_location="cpu")
+    state_dict = ckpt.get("model", ckpt.get("state_dict", ckpt))
+    clean_state_dict = {}
+    for k, v in state_dict.items():
+        clean_k = k.replace("module.", "")
+        clean_state_dict[clean_k] = v
+    model.load_state_dict(clean_state_dict, strict=True)
+    print("[Evaluate] Checkpoint loaded successfully into model!")
     
     model = model.to(device)
     model.eval()
     
-    # 3. Loss criterion & Meters
+    # 5. Loss criterion & Evaluation Meters
     criterion = get_criterion(p).to(device)
     performance_meter = PerformanceMeter(p, p.TASKS.NAMES)
     
-    total_loss = 0.0
+    total_linear_loss = 0.0
+    total_scheme_loss = 0.0
     n_batches = 0
     
-    # Semantic segmentation accumulation for Overall IoU & Pixel Accuracy
+    # Segmentation pixel confusion accumulator for Overall IoU and Pixel Accuracy
     n_classes = 7
+    class_names = ["flat", "construction", "object", "nature", "sky", "human", "vehicle"]
     total_tp = np.zeros(n_classes, dtype=np.int64)
     total_fp = np.zeros(n_classes, dtype=np.int64)
     total_fn = np.zeros(n_classes, dtype=np.int64)
@@ -79,11 +142,18 @@ def evaluate_checkpoint(config_path, checkpoint_path, device="cuda" if torch.cud
         targets = {task: batch[task].to(device, non_blocking=True) for task in p.TASKS.NAMES}
         
         output = model(images)
-        loss, _ = criterion(output, targets)
-        total_loss += loss.item()
+        loss_dict = criterion(output, targets, tasks=p.TASKS.NAMES)
+        
+        # Linear multi-task loss (L_semseg + L_depth) matching CNN U-Net & Mamba-UNet benchmark standard
+        l_sem = loss_dict['semseg'].item() if 'semseg' in loss_dict else 0.0
+        l_dep = loss_dict['depth'].item() if 'depth' in loss_dict else 0.0
+        total_linear_loss += (l_sem + l_dep)
+        
+        if 'total' in loss_dict:
+            total_scheme_loss += loss_dict['total'].item()
         n_batches += 1
         
-        # Update standard performance meter
+        # Update standard performance meter (for mIoU and depth metrics)
         performance_meter.update(
             {t: get_output(output[t], t) for t in p.TASKS.NAMES},
             {t: targets[t] for t in p.TASKS.NAMES}
@@ -102,9 +172,10 @@ def evaluate_checkpoint(config_path, checkpoint_path, device="cuda" if torch.cud
             total_fn[c] += torch.sum(c_gt & ~c_pred & valid).item()
             
     # Calculate aggregated metrics
-    val_loss = total_loss / max(n_batches, 1)
+    val_linear_loss = total_linear_loss / max(n_batches, 1)
+    val_scheme_loss = total_scheme_loss / max(n_batches, 1)
     
-    # mIoU (macro), Overall IoU (micro), Pixel Accuracy
+    # Segmentation Metrics: mIoU (macro), Overall IoU (micro), Pixel Accuracy
     class_ious = [float(total_tp[c]) / max(float(total_tp[c] + total_fp[c] + total_fn[c]), 1e-8) for c in range(n_classes)]
     m_iou = float(np.mean(class_ious))
     overall_iou = float(np.sum(total_tp)) / max(float(np.sum(total_tp + total_fp + total_fn)), 1e-8)
@@ -115,7 +186,8 @@ def evaluate_checkpoint(config_path, checkpoint_path, device="cuda" if torch.cud
     
     summary = {
         "model": p.get("version_name", "mtmamba"),
-        "loss": round(val_loss, 4),
+        "linear_loss": round(val_linear_loss, 4),
+        "scheme_loss": round(val_scheme_loss, 4),
         "mIoU": round(m_iou, 4),
         "overall_iou": round(overall_iou, 4),
         "pixel_accuracy": round(pixel_acc, 4),
@@ -125,25 +197,34 @@ def evaluate_checkpoint(config_path, checkpoint_path, device="cuda" if torch.cud
         "sq_rel": round(depth_res['sq_rel'], 4),
     }
     
-    print("\n" + "=" * 60)
-    print(f"COMPLETE EVALUATION RESULTS: {p.get('version_name')}")
-    print("=" * 60)
+    print("\n" + "=" * 70)
+    print(f"AUTHENTIC EVALUATION RESULTS: {p.get('version_name')}")
+    print("=" * 70)
     for k, v in summary.items():
         print(f"  {k:20}: {v}")
-    print("=" * 60)
+    print("=" * 70)
     
+    print("\nClass-wise IoUs:")
+    for c, name in enumerate(class_names):
+        print(f"  {name:15}: {class_ious[c] * 100:.2f}%")
+        
     out_json = checkpoint_path.replace(".pth.tar", "_complete_metrics.json")
-    with open(out_json, "w") as f:
-        json.dump(summary, f, indent=4)
-    print(f"[Evaluate] Saved complete metrics to: {out_json}")
-    
+    try:
+        with open(out_json, "w") as f:
+            json.dump(summary, f, indent=4)
+        print(f"\n[Evaluate] Saved complete metrics to: {out_json}")
+    except Exception as e:
+        print(f"\n[Evaluate] Could not write json to checkpoint dir ({e}), writing to ./evaluation_results.json")
+        with open("evaluation_results.json", "w") as f:
+            json.dump(summary, f, indent=4)
+            
     return summary
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to config YAML")
-    parser.add_argument("--checkpoint", type=str, required=True, help="Path to best_model.pth.tar")
+    parser.add_argument("--checkpoint", type=str, default="", help="Path to checkpoint .pth.tar (optional, auto-searches if omitted)")
     args = parser.parse_args()
     
-    evaluate_checkpoint(args.config, args.checkpoint)
+    evaluate_checkpoint(args.config, args.checkpoint if args.checkpoint else None)

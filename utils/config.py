@@ -1,4 +1,4 @@
-﻿# This code is referenced from 
+# This code is referenced from 
 # https://github.com/facebookresearch/astmt/
 # 
 # Copyright (c) Facebook, Inc. and its affiliates.

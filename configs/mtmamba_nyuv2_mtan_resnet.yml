@@ -1,7 +1,7 @@
 # MTMamba on MTAN-preprocessed NYUv2 (288x384, 13 classes) with ResNet-50 Backbone
 # Epoch-aligned to Cityscapes: Exactly 40 Epochs (4,000 iterations at batch size 8)
 version_name: mtmamba_nyuv2_mtan_resnet50
-out_dir: "/runs/"
+out_dir: "/kaggle/working/runs/"
 
 # Database - NYUv2 MTAN preprocessed dataset (288x384 .npy)
 train_db_name: NYUv2MTAN

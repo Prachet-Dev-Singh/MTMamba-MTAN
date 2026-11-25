@@ -38,6 +38,8 @@ def parse_task_dictionary(db_name, task_dictionary):
             task_cfg.NUM_OUTPUT[tmp] = 19
         elif db_name == 'CityscapesMTAN':
             task_cfg.NUM_OUTPUT[tmp] = 7  # 7-class MTAN grouping
+        elif db_name == 'NYUv2MTAN':
+            task_cfg.NUM_OUTPUT[tmp] = 13  # 13-class NYUv2 MTAN
         else:
             raise NotImplementedError
         task_cfg.FLAGVALS[tmp] = cv2.INTER_NEAREST 
@@ -53,7 +55,7 @@ def parse_task_dictionary(db_name, task_dictionary):
         if db_name == 'Cityscapes':
             task_cfg.depth_max = 80.0
             task_cfg.depth_min = 0.
-        elif db_name == 'CityscapesMTAN':
+        elif db_name in ['CityscapesMTAN', 'NYUv2MTAN']:
             task_cfg.depth_max = 10.0
             task_cfg.depth_min = 0.0
         else:
@@ -81,7 +83,7 @@ def parse_task_dictionary(db_name, task_dictionary):
     if 'include_normals' in task_dictionary.keys() and task_dictionary['include_normals']:
         # Surface Normals 
         tmp = 'normals'
-        assert(db_name in ['PASCALContext', 'NYUD'])
+        assert(db_name in ['PASCALContext', 'NYUD', 'NYUv2MTAN'])
         task_cfg.NAMES.append(tmp)
         task_cfg.NUM_OUTPUT[tmp] = 3
         task_cfg.FLAGVALS[tmp] = cv2.INTER_CUBIC
@@ -90,7 +92,7 @@ def parse_task_dictionary(db_name, task_dictionary):
 
     if 'include_edge' in task_dictionary.keys() and task_dictionary['include_edge']:
         # Edge Detection
-        assert(db_name in ['PASCALContext', 'NYUD'])
+        assert(db_name in ['PASCALContext', 'NYUD', 'NYUv2MTAN'])
         tmp = 'edge'
         task_cfg.NAMES.append(tmp)
         task_cfg.NUM_OUTPUT[tmp] = 1
@@ -150,6 +152,14 @@ def create_config(exp_file, params):
         cfg.TRAIN.SCALE = (128, 256)
         cfg.TEST = edict()
         cfg.TEST.SCALE = (128, 256)
+
+    elif cfg['train_db_name'] == 'NYUv2MTAN':
+        # NYUv2 MTAN dataset: 288x384 .npy files, 13 classes
+        cfg.IMAGE_ORI_SIZE = (288, 384)
+        cfg.TRAIN = edict()
+        cfg.TRAIN.SCALE = (288, 384)
+        cfg.TEST = edict()
+        cfg.TEST.SCALE = (288, 384)
 
     else:
         raise NotImplementedError

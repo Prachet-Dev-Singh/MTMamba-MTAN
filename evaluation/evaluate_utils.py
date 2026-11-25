@@ -29,6 +29,11 @@ def count_improvement(dataset_name, eval_results, task_list):
         base_result_dict = {'semseg': 70.72, 'depth': 1.0}
         task_metric = {'semseg': 'mIoU', 'depth': 'rmse'}
         weight_dict = {'semseg': 1, 'depth': 0}
+    elif dataset_name == 'NYUv2MTAN':
+        # 13-class NYUv2 MTAN baseline references (from MTAN paper)
+        base_result_dict = {'semseg': 38.0, 'depth': 0.60, 'normals': 25.0}
+        task_metric = {'semseg': 'mIoU', 'depth': 'rmse', 'normals': 'mean'}
+        weight_dict = {'semseg': 1, 'depth': 0, 'normals': 0}
     else:
         raise ValueError
 

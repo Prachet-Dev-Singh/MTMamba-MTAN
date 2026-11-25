@@ -93,7 +93,7 @@ def get_transformations(p):
         ])
         return train_transforms, valid_transforms
 
-    elif p['train_db_name'] == 'CityscapesMTAN':
+    elif p['train_db_name'] in ['CityscapesMTAN', 'NYUv2MTAN']:
         return None, None
 
     else:
@@ -133,6 +133,10 @@ def get_train_dataset(p, transforms=None):
     if db_name == 'CityscapesMTAN':
         from data.cityscapes_mtan import CityscapesMTAN
         database = CityscapesMTAN(p.db_paths['CityscapesMTAN'], split='train',
+                    task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=True)
+    elif db_name == 'NYUv2MTAN':
+        from data.nyuv2_mtan import NYUv2MTAN
+        database = NYUv2MTAN(p.db_paths['NYUv2MTAN'], split='train',
                     task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=True)
     return database
 
@@ -179,8 +183,13 @@ def get_test_dataset(p, transforms=None):
         database = CityscapesMTAN(p.db_paths['CityscapesMTAN'], split='val',
                     task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=False)
 
+    elif db_name == 'NYUv2MTAN':
+        from data.nyuv2_mtan import NYUv2MTAN
+        database = NYUv2MTAN(p.db_paths['NYUv2MTAN'], split='val',
+                    task_list=p.TASKS.NAMES, ignore_index=p.ignore_index, augment=False)
+
     else:
-        raise NotImplementedError("test_db_name: Choose among PASCALContext, NYUD, Cityscapes, CityscapesMTAN")
+        raise NotImplementedError("test_db_name: Choose among PASCALContext, NYUD, Cityscapes, CityscapesMTAN, NYUv2MTAN")
 
     return database
 

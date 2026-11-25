@@ -10,3 +10,6 @@ for database, db_pa in db_names.items():
 
 # MTAN-preprocessed Cityscapes (128x256 .npy, 7 classes) mounted at /data in Modal
 db_paths['CityscapesMTAN'] = '/data'
+
+# MTAN-preprocessed NYUv2 (288x384 .npy, 13 classes)
+db_paths['NYUv2MTAN'] = '/kaggle/working/data/nyuv2'

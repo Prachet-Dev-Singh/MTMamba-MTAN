@@ -1,0 +1,41 @@
+# MTMamba on MTAN-preprocessed NYUv2 (288x384, 13 classes) with ResNet-50 Backbone
+# Epoch-aligned to Cityscapes: Exactly 40 Epochs (4,000 iterations at batch size 8)
+version_name: mtmamba_nyuv2_mtan_resnet50
+out_dir: "/runs/"
+
+# Database - NYUv2 MTAN preprocessed dataset (288x384 .npy)
+train_db_name: NYUv2MTAN
+val_db_name: NYUv2MTAN
+trBatch: 4          # 4 samples/GPU (effective batch = 8 on 2x T4 GPUs)
+valBatch: 8
+nworkers: 4
+ignore_index: 255
+
+# Optimizer and scheduler - Epoch-matched to Cityscapes (~40 epochs)
+intermediate_supervision: False
+val_interval: 100   # Validate and checkpoint every epoch (every 100 iterations)
+epochs: 40          # Exactly 40 epochs (same as Cityscapes)
+max_iter: 4000      # 40 epochs * (795 / 8) iters/epoch = 4,000 iterations for PolynomialLR decay
+optimizer: adamw
+optimizer_kwargs:
+   lr: 0.0001
+   weight_decay: 0.000001
+scheduler: poly
+
+# Model
+model: MTMamba
+backbone: resnet50  # Uses models/resnet_backbone.py (ResNet-50, official torchvision ImageNet-1K weights)
+
+# Tasks: 13-class semantic segmentation, 1-channel depth estimation, 3-channel surface normals
+task_dictionary:
+   include_semseg: True
+   include_depth: True
+   include_normals: True
+
+# Multi-task loss weights
+loss_kwargs:
+   loss_scheme: log
+   loss_weights:
+       semseg: 1.0
+       depth: 1.0
+       normals: 1.0

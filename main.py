@@ -29,7 +29,7 @@ dist.init_process_group(backend='nccl', init_method='env://', timeout=datetime.t
 parser = argparse.ArgumentParser(description='Vanilla Training')
 parser.add_argument('--config_exp',
                     help='Config file for the experiment')
-parser.add_argument('--local-rank', default=0, type=int,
+parser.add_argument('--local-rank', '--local_rank', default=0, type=int,
                     help='node rank for distributed training')
 parser.add_argument('--run_mode',
                     help='Config file for the experiment')
@@ -37,6 +37,10 @@ parser.add_argument('--trained_model', default=None,
                     help='Config file for the experiment')
 parser.add_argument('--seed', default=0, type=int, help='')
 args = parser.parse_args()
+
+# Synchronize local_rank with environment if set by launcher
+if 'LOCAL_RANK' in os.environ:
+    args.local_rank = int(os.environ['LOCAL_RANK'])
 
 print('local rank: %s' %args.local_rank)
 torch.cuda.set_device(args.local_rank)

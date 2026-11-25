@@ -1,21 +1,21 @@
 # MTMamba on MTAN-preprocessed NYUv2 (288x384, 13 classes) with Swin-Large Backbone
-# Epoch-aligned to Cityscapes: Exactly 40 Epochs (8,000 iterations at effective batch size 4)
+# Epoch-aligned to Cityscapes: Exactly 40 Epochs (16,000 iterations at effective batch size 2)
 version_name: mtmamba_nyuv2_mtan_swin
 out_dir: "/kaggle/working/runs/"
 
 # Database - NYUv2 MTAN preprocessed dataset (288x384 .npy)
 train_db_name: NYUv2MTAN
 val_db_name: NYUv2MTAN
-trBatch: 2          # 2 samples/GPU (effective batch = 4 on 2x T4 GPUs to fit 288x384 in 15GB VRAM)
-valBatch: 4
+trBatch: 1          # 1 sample/GPU (effective batch = 2 on 2x T4 GPUs to fit 288x384 in 15GB VRAM)
+valBatch: 2
 nworkers: 4
 ignore_index: 255
 
 # Optimizer and scheduler - Epoch-matched to Cityscapes (~40 epochs)
 intermediate_supervision: False
-val_interval: 200   # Validate and checkpoint every epoch (~200 iterations at batch size 4)
+val_interval: 400   # Validate and checkpoint every epoch (~398 iterations at batch size 2)
 epochs: 40          # Exactly 40 epochs (same as Cityscapes)
-max_iter: 8000      # 40 epochs * (795 / 4) iters/epoch = 8,000 iterations for PolynomialLR decay
+max_iter: 16000     # 40 epochs * (795 / 2) iters/epoch = 15,900 ~ 16,000 iterations for PolynomialLR decay
 optimizer: adamw
 optimizer_kwargs:
    lr: 0.0001

@@ -13,10 +13,17 @@ def get_backbone(p):
         backbone_channels = None
         ppath = './pretrained_ckpts/'
         _win = 8 if getattr(p, "IMAGE_ORI_SIZE", [1024])[0] <= 256 else 12
+        ckpt_pretrained = f'{ppath}/mmseg_swin_large_patch4_window12_384_22kto1k.pth'
+        if not os.path.exists(ckpt_pretrained):
+            ckpt_pretrained = None
         backbone = SwinTransformer(patch_size=4, window_size=_win, embed_dims=192,
                     depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48), pretrain_img_size=p.TRAIN.SCALE,
-                    pretrained=f'{ppath}/mmseg_swin_large_patch4_window12_384_22kto1k.pth')
-        backbone.init_weights()
+                    pretrained=ckpt_pretrained)
+        if ckpt_pretrained:
+            try:
+                backbone.init_weights()
+            except Exception:
+                pass
 
     elif p['backbone'] == 'resnet50':
         from models.resnet_backbone import build_resnet50_backbone

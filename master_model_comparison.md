@@ -74,6 +74,31 @@ All three tables now follow the **identical 11-column standardized layout** so m
 
 ---
 
+### Part 4: NYUv2 Multi-Task Benchmark (MTAN Preprocessed 288×384, 13 Classes, Depth & Surface Normals)
+
+| Model Name | Tasks | mIoU ↑ | Depth RMSE ↓ | Depth Abs Rel ↓ | Normals Mean Deg ↓ | Epochs | Total Params | Params (M) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **MTMamba (ResNet-50)** | SemSeg + Depth + Normals | **0.4576** (45.76%) | **0.6352** | **0.1850** (18.50%) | **30.6613°** | 40 Epochs | **123,175,496** | 123.18 M |
+
+*Detailed Authentic Metrics for MTMamba (ResNet-50) on NYUv2 MTAN (654 Test Images):*
+* **13-Class Semantic Segmentation (mIoU = 45.7578%):**
+  * `bed`: 40.61% | `books`: 23.13% | `ceiling`: 47.34% | `chair`: 49.06%
+  * `floor`: **83.06%** | `furniture`: 49.45% | `objects`: 40.38% | `painting`: 46.92%
+  * `sofa`: 38.36% | `table`: 30.38% | `tv`: 23.93% | `wall`: **73.61%** | `window`: 48.62%
+* **Depth Estimation (Metric Depth in Meters):**
+  * **RMSE:** `0.6352`
+  * **Log RMSE:** `0.2345`
+  * **Abs Rel:** `0.1850` (18.50%)
+  * **Sq Rel:** `0.1471`
+* **Surface Normals (3D Geometry):**
+  * **Mean Degree Error:** `30.6613°`
+* **Training Dynamics & Budget:**
+  * **Epoch Alignment:** Exactly 40 epochs (16,000 iterations at batch size 2 across 2x T4 GPUs).
+  * **Total Training Time:** 8.29 hours.
+  * **Hardware:** 2x NVIDIA Tesla T4 GPUs (Kaggle).
+
+---
+
 ## 3. Metric Clarification: mIoU vs. Overall IoU vs. Pixel Accuracy
 
 In dense prediction and semantic segmentation literature, these three metrics capture fundamentally different aspects of classification quality:
